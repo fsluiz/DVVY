@@ -146,6 +146,15 @@ year_trips %>%
   arrange(member_casual, weekday) %>% 
   ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) + geom_col(position = "dodge")
 
+#Create a visulaization for average duration by readiable_type
+year_trips %>% 
+  mutate(weekday = wday(started_at, label=TRUE)) %>% 
+  group_by(member_casual, rideable_type) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, rideable_type) %>% 
+  ggplot(aes(x = rideable_type, y = average_duration, fill = member_casual)) + geom_col(position = "dodge") + 
+  scale_x_discrete(labels=c("Classic Bike", "Docked Bike", "Elecric Bike")) +
+  labs(title = "Rideable Type vs Average Duration in Seconds", subtitle = "Comparison between casual consumers and members", x = "Rideable Type", y = "Average Duration in Seconds", fill = "Consumer")
 #======================================================================
 #Export summary file for further analysis
 #=====================================================================
