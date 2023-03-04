@@ -136,7 +136,9 @@ year_trips %>%
   group_by(member_casual, weekday) %>% 
   summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
   arrange(member_casual, weekday) %>% 
-  ggplot(aes(x=weekday, y= number_of_rides, fill = member_casual))+ geom_col(position='dodge')
+  ggplot(aes(x=weekday, y= number_of_rides, fill = member_casual))+ geom_col(position='dodge') + 
+  scale_x_discrete(labels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")) +
+  labs(title = "Weekday vs Number of Rides", subtitle = "Comparison between casual consumers and members", x = "Weekday", y = "Number of Rides", fill = "Consumer")
 
 #Create a visualization for average duration
 year_trips %>% 
@@ -144,7 +146,9 @@ year_trips %>%
   group_by(member_casual, weekday) %>% 
   summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
   arrange(member_casual, weekday) %>% 
-  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) + geom_col(position = "dodge")
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) + geom_col(position = "dodge") + 
+  scale_x_discrete(labels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")) +
+  labs(title = "Weekday vs Average Duration in Seconds", subtitle = "Comparison between casual consumers and members", x = "Weekday", y = "Average Duration in Seconds", fill = "Consumer")
 
 #Create a visulaization for average duration by readiable_type
 year_trips %>% 
