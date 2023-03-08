@@ -4,6 +4,16 @@
 library(tidyverse)  #helps wrangle data
 library(lubridate)  #helps wrangle date attributes
 library(ggplot2)  #helps visualize data
+library(sunburstR) #helps to visualize data
+library(leaflet) # help to visulaize maps
+library(htmlwidgets) #save maps
+library(sf) # read geojson
+library(readr) # help to read sf archive
+library(treemap) #create a dataframe hierachical
+library(ggplotify) #create sunbusrt grafic
+library(datasets)
+library(data.table)
+library(plotly) #help to create a interative plots.
 getwd() #displays your working directory
 setwd("/home/fabricio/learning/Google_data_analytic/Case_study_01/raw_data") #sets your working directory to simplify calls to data
 
@@ -124,13 +134,87 @@ aggregate(year_trips$ride_length ~ year_trips$member_casual + year_trips$day_of_
 #creates weekday fields using wday()
 #groups by usertype and weekday
 #calculate the number of rides and average duration
-year_trips %>% 
+nride_avduration_weekday <-year_trips %>% 
   mutate(weekday = wday(started_at, label=TRUE)) %>% 
   group_by(member_casual, weekday) %>% 
   summarise(number_of_rides = n(), averange_duration = mean(ride_length) ) %>%  
   arrange(member_casual, weekday)
+#===============================================================================
+#defi function to use a sunburs plot see https://stackoverflow.com/questions/12926779/how-to-make-a-sunburst-plot-in-r-or-python
+as.sunburstDF <- function(DF, valueCol = NULL){
+  require(data.table)
   
-# Visualize the number of rides by rider type
+  colNamesDF <- names(DF)
+  
+  if(is.data.table(DF)){
+    DT <- copy(DF)
+  } else {
+    DT <- data.table(DF, stringsAsFactors = FALSE)
+  }
+  
+  DT[, root := names(DF)[1]]
+  colNamesDT <- names(DT)
+  
+  if(is.null(valueCol)){
+    setcolorder(DT, c("root", colNamesDF))
+  } else {
+    setnames(DT, valueCol, "values", skip_absent=TRUE)
+    setcolorder(DT, c("root", setdiff(colNamesDF, valueCol), "values"))
+  }
+  
+  hierarchyCols <- setdiff(colNamesDT, "values")
+  hierarchyList <- list()
+  
+  for(i in seq_along(hierarchyCols)){
+    currentCols <- colNamesDT[1:i]
+    if(is.null(valueCol)){
+      currentDT <- unique(DT[, ..currentCols][, values := .N, by = currentCols], by = currentCols)
+    } else {
+      currentDT <- DT[, lapply(.SD, sum, na.rm = TRUE), by=currentCols, .SDcols = "values"]
+    }
+    setnames(currentDT, length(currentCols), "labels")
+    hierarchyList[[i]] <- currentDT
+  }
+  
+  hierarchyDT <- rbindlist(hierarchyList, use.names = TRUE, fill = TRUE)
+  
+  parentCols <- setdiff(names(hierarchyDT), c("labels", "values", valueCol))
+  hierarchyDT[, parents := apply(.SD, 1, function(x){fifelse(all(is.na(x)), yes = NA_character_, no = paste(x[!is.na(x)], sep = ":", collapse = " - "))}), .SDcols = parentCols]
+  hierarchyDT[, ids := apply(.SD, 1, function(x){paste(x[!is.na(x)], collapse = " - ")}), .SDcols = c("parents", "labels")]
+  hierarchyDT[, c(parentCols) := NULL]
+  return(hierarchyDT)
+}
+#====================================================
+# number rides weekday 
+nride_weekday <-year_trips %>% 
+  mutate(weekday = wday(started_at, label=TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()) %>%  
+  arrange(member_casual, weekday)
+
+DF <- as.data.table(nride_weekday)
+setcolorder(DF, c("member_casual", "weekday", "number_of_rides"))
+sunburstDF <- as.sunburstDF(DF, valueCol = "number_of_rides")
+
+
+plot_ly(data = sunburstDF, ids = ~ids, labels= ~labels, parents = ~parents, values= ~values, type='sunburst', branchvalues = 'total') %>% 
+  layout(title = "Comsumer Number of Rides per Weekday")
+
+# averange duration rides weekday 
+nride_avduration_weekday <-year_trips %>% 
+  mutate(weekday = wday(started_at, label=TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise( averange_duration = mean(ride_length) ) %>%  
+  arrange(member_casual, weekday)
+DF <- as.data.table(nride_weekday)
+setcolorder(DF, c("member_casual", "weekday", "averange_duration"))
+sunburstDF <- as.sunburstDF(DF, valueCol = "averange_duration")
+
+
+plot_ly(data = sunburstDF, ids = ~ids, labels= ~labels, parents = ~parents, values= ~values, type='sunburst', branchvalues = 'total') %>% 
+  layout(title = "Comsumer averange duration Weekday")
+
+# Visualize the number of rides by rider type for weekday
 year_trips %>% 
   mutate(weekday = wday(started_at, label = TRUE)) %>% 
   group_by(member_casual, weekday) %>% 
@@ -140,7 +224,18 @@ year_trips %>%
   scale_x_discrete(labels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")) +
   labs(title = "Weekday vs Number of Rides", subtitle = "Comparison between casual consumers and members", x = "Weekday", y = "Number of Rides", fill = "Consumer")
 
-#Create a visualization for average duration
+#Create a map of chicago with gggplot see https://thisisdaryn.netlify.app/post/intro-to-making-maps-with-ggplot2/
+chi_map <- read_sf("https://raw.githubusercontent.com/thisisdaryn/data/master/geo/chicago/Comm_Areas.geojson") 
+
+sample_of <- year_trips[sample(nrow(year_trips),10000),] 
+
+ggplot() + 
+  geom_sf(data = chi_map, fill = 'ivory', colour = 'ivory')+
+  geom_point(data = sample_of, aes(x = start_lng, y = start_lat, colour = member_casual))
+
+nrow(year_trips)
+  
+#Create a visualization for average duration for weekday
 year_trips %>% 
   mutate(weekday = wday(started_at, label=TRUE)) %>% 
   group_by(member_casual, weekday) %>% 
@@ -149,6 +244,26 @@ year_trips %>%
   ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) + geom_col(position = "dodge") + 
   scale_x_discrete(labels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")) +
   labs(title = "Weekday vs Average Duration in Seconds", subtitle = "Comparison between casual consumers and members", x = "Weekday", y = "Average Duration in Seconds", fill = "Consumer")
+
+#Visualization average duration for month comapre by costumer
+year_trips %>% 
+  mutate(weekday = wday(started_at, label=TRUE)) %>% 
+  group_by(member_casual, month) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, month) %>% 
+  ggplot(aes(x = month, y = average_duration, fill = member_casual)) + geom_col(position = "dodge") + 
+  scale_x_discrete(labels=c("Jan", "Feb", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez")) +
+  labs(title = "Month vs Average Duration in Seconds", subtitle = "Comparison between casual consumers and members", x = "Month", y = "Average Duration in Seconds", fill = "Consumer")
+
+#Visualization number of ride for month comapre by costumer
+year_trips %>% 
+  mutate(weekday = wday(started_at, label=TRUE)) %>% 
+  group_by(member_casual, month) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, month) %>% 
+  ggplot(aes(x = month, y = number_of_rides, fill = member_casual)) + geom_col(position = "dodge") + 
+  scale_x_discrete(labels=c("Jan", "Feb", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez")) +
+  labs(title = "Month vs Number of Rides", subtitle = "Comparison between casual consumers and members", x = "Month", y = "Number of Rides", fill = "Consumer")
 
 #Create a visulaization for average duration by readiable_type
 year_trips %>% 
@@ -159,6 +274,19 @@ year_trips %>%
   ggplot(aes(x = rideable_type, y = average_duration, fill = member_casual)) + geom_col(position = "dodge") + 
   scale_x_discrete(labels=c("Classic Bike", "Docked Bike", "Elecric Bike")) +
   labs(title = "Rideable Type vs Average Duration in Seconds", subtitle = "Comparison between casual consumers and members", x = "Rideable Type", y = "Average Duration in Seconds", fill = "Consumer")
+
+#Create a visualization for number of ride
+year_trips %>% 
+  mutate(weekday = wday(started_at, label=TRUE)) %>% 
+  group_by(member_casual, rideable_type) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, rideable_type) %>% 
+  ggplot(aes(x = rideable_type, y = number_of_rides, fill = member_casual)) + geom_col(position = "dodge") + 
+  scale_x_discrete(labels=c("Classic Bike", "Docked Bike", "Elecric Bike")) +
+  labs(title = "Rideable Type vs Number fo Rides", subtitle = "Comparison between casual consumers and members", x = "Rideable Type", y = "Number of Rides", fill = "Consumer")
+
+#Start ponints more comum
+
 #======================================================================
 #Export summary file for further analysis
 #=====================================================================
