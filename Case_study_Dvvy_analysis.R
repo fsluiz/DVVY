@@ -75,7 +75,6 @@ dim(year_trips)
 head(year_trips)
 str(year_trips)
 summary(year_trips)
-unique(duplicated(year_trips$ride_id))# Checks for duplicate values in ride_id
 
 #How many observaton fall under each usertype
 table(year_trips$member_casual)
@@ -104,6 +103,8 @@ year_trips <- year_trips[!(year_trips$ride_length<0),]
 
 #The columns start_station_name and start_station_id are Na values to make sure which columns are empty
 colSums(is.na(year_trips))
+# Checks for duplicate values in ride_id
+unique(duplicated(year_trips$ride_id))
 #after removing the negative ride_lengths, there is 4736 rows if end_lat and en_lhg empty. We could delet this rows
 year_trips <- year_trips[complete.cases(year_trips),]
 #======================================================
@@ -135,11 +136,58 @@ aggregate(year_trips$ride_length ~ year_trips$member_casual + year_trips$day_of_
 #groups by usertype and weekday
 #calculate the number of rides and average duration
 nride_avduration_weekday <-year_trips %>% 
-  mutate(weekday = wday(started_at, label=TRUE)) %>% 
+  mutate(weekday = lubridate::wday(started_at, label=TRUE)) %>% 
   group_by(member_casual, weekday) %>% 
   summarise(number_of_rides = n(), averange_duration = mean(ride_length) ) %>%  
   arrange(member_casual, weekday)
+head(year_trips)
 #===============================================================================
+#Plots number of rides in funcion of the hour the day
+year_trips %>% 
+  mutate(hora = lubridate::hour(started_at)) %>% 
+  group_by(member_casual, hora) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, hora) %>% 
+  ggplot(aes(x=hora, y= number_of_rides, colour = member_casual))+ geom_line() + 
+  annotate("rect", xmin = 6, xmax = 8, ymin = 0, ymax = Inf, alpha = 0.2, fill = "orange")+
+  annotate("text", x = 7, y = 3e+05, label = "Rush", size = 3)+
+  annotate("rect", xmin = 16, xmax = 18, ymin = 0, ymax = Inf, alpha = 0.2, fill = "orange")+
+  annotate("text", x = 17, y = 1e+05, label = "Rush", size = 3)+
+  labs(title = "Number of Rides per day hours", subtitle = "Comparison between casual and members consumers", x = "Hour", y = "Number of Rides", fill = "Consumer")
+#Plot average duration per hour of the day
+year_trips %>% 
+  mutate(hora = lubridate::hour(started_at)) %>% 
+  group_by(member_casual, hora) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, hora) %>% 
+  ggplot(aes(x=hora, y= average_duration, colour = member_casual))+ geom_line() + 
+  annotate("rect", xmin = 6, xmax = 8, ymin = 0, ymax = Inf, alpha = 0.2, fill = "orange")+
+  annotate("text", x = 7, y = 500, label = "Rush", size = 3)+
+  annotate("rect", xmin = 16, xmax = 18, ymin = 0, ymax = Inf, alpha = 0.2, fill = "orange")+
+  annotate("text", x = 17, y = 500, label = "Rush", size = 3)+
+  labs(title = "Average duration per day hours", subtitle = "Comparison between casual and members consumers", x = "Hour", y = "Number of Rides", fill = "Consumer")
+# filter by work days in  day of week 
+work_days <- filter(year_trips, day_of_week %in% c('segunda','terça','quarta','quinta','sexta'))
+work_days %>% 
+  mutate(hora = lubridate::hour(started_at)) %>% 
+  group_by(member_casual, hora) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, hora) %>% 
+  ggplot(aes(x=hora, y= number_of_rides, colour = member_casual))+ geom_line() + 
+  annotate("rect", xmin = 6, xmax = 8, ymin = 0, ymax = Inf, alpha = 0.2, fill = "orange")+
+  annotate("text", x = 7, y = 3e+05, label = "Rush", size = 3)+
+  annotate("rect", xmin = 16, xmax = 18, ymin = 0, ymax = Inf, alpha = 0.2, fill = "orange")+
+  annotate("text", x = 17, y = 1e+05, label = "Rush", size = 3)+
+  labs(title = "Number of Rides per day hours", subtitle = "Comparison between casual and members consumers", x = "Hour", y = "Number of Rides", fill = "Consumer")
+#filter by weekend
+weekend_days <- filter(year_trips, day_of_week %in% c('domingo','sábado'))
+weekend_days%>% 
+  mutate(hora = lubridate::hour(started_at)) %>% 
+  group_by(member_casual, hora) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, hora) %>% 
+  ggplot(aes(x=hora, y= number_of_rides, colour = member_casual))+ geom_line() + 
+  labs(title = "Number of Rides per day hours", subtitle = "Comparison between casual and members consumers", x = "Hour", y = "Number of Rides", fill = "Consumer")
 #defi function to use a sunburs plot see https://stackoverflow.com/questions/12926779/how-to-make-a-sunburst-plot-in-r-or-python
 as.sunburstDF <- function(DF, valueCol = NULL){
   require(data.table)
@@ -187,7 +235,7 @@ as.sunburstDF <- function(DF, valueCol = NULL){
 #====================================================
 # number rides weekday 
 nride_weekday <-year_trips %>% 
-  mutate(weekday = wday(started_at, label=TRUE)) %>% 
+  mutate(weekday = lubridate::wday(started_at, label=TRUE)) %>% 
   group_by(member_casual, weekday) %>% 
   summarise(number_of_rides = n()) %>%  
   arrange(member_casual, weekday)
@@ -200,23 +248,10 @@ sunburstDF <- as.sunburstDF(DF, valueCol = "number_of_rides")
 plot_ly(data = sunburstDF, ids = ~ids, labels= ~labels, parents = ~parents, values= ~values, type='sunburst', branchvalues = 'total') %>% 
   layout(title = "Comsumer Number of Rides per Weekday")
 
-# averange duration rides weekday 
-nride_avduration_weekday <-year_trips %>% 
-  mutate(weekday = wday(started_at, label=TRUE)) %>% 
-  group_by(member_casual, weekday) %>% 
-  summarise( averange_duration = mean(ride_length) ) %>%  
-  arrange(member_casual, weekday)
-DF <- as.data.table(nride_weekday)
-setcolorder(DF, c("member_casual", "weekday", "averange_duration"))
-sunburstDF <- as.sunburstDF(DF, valueCol = "averange_duration")
-
-
-plot_ly(data = sunburstDF, ids = ~ids, labels= ~labels, parents = ~parents, values= ~values, type='sunburst', branchvalues = 'total') %>% 
-  layout(title = "Comsumer averange duration Weekday")
 
 # Visualize the number of rides by rider type for weekday
 year_trips %>% 
-  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  mutate(weekday = lubridate::wday(started_at, label = TRUE)) %>% 
   group_by(member_casual, weekday) %>% 
   summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
   arrange(member_casual, weekday) %>% 
@@ -228,12 +263,40 @@ year_trips %>%
 chi_map <- read_sf("https://raw.githubusercontent.com/thisisdaryn/data/master/geo/chicago/Comm_Areas.geojson") 
 
 sample_of <- year_trips[sample(nrow(year_trips),10000),] 
-
+# Create a data set with weekday, member_casual start_lng, end_lng, start_lat, end_lat, number of rides and average duration
+data_graph = year_trips %>% 
+  mutate(weekday = lubridate::wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual,weekday, start_lng, start_lat, end_lng, end_lat) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(desc(number_of_rides))
+#Filter by casual rider
+casual_data_graph <- data_graph %>% filter(member_casual=="casual")
+#Filter by member rider
+member_data_graph <-  data_graph %>% filter(member_casual=="member")
+# take top location in number of rider
+top_location_casual <- casual_data_graph[1:200, ]
+top_location_member <- member_data_graph[1:200, ]
+# Map with top initial location for casual
 ggplot() + 
   geom_sf(data = chi_map, fill = 'ivory', colour = 'ivory')+
-  geom_point(data = sample_of, aes(x = start_lng, y = start_lat, colour = member_casual))
+  geom_point(data = top_location_casual, aes(x = start_lng, y = start_lat,size = number_of_rides)) +
+  labs(title = "Top start location for casual riders", subtitle = "Number of Riders for casual rides in top start locations", x = "Longitude", y = "Latitude")
+# Map with top final location for casual
+ggplot() + 
+  geom_sf(data = chi_map, fill = 'ivory', colour = 'ivory')+
+  geom_point(data = top_location_casual, aes(x = end_lng, y = end_lat, colour = member_casual, size = number_of_rides))+
+  labs(title = "Top end location for casual riders", subtitle = "Number of Riders for casual rides in top end locations", x = "Longitude", y = "Latitude")
 
-nrow(year_trips)
+# Map with top initial location for member
+ggplot() + 
+  geom_sf(data = chi_map, fill = 'ivory', colour = 'ivory')+
+  geom_point(data = top_location_member, aes(x = start_lng, y = start_lat,size = number_of_rides)) +
+  labs(title = "Top start location for member riders", subtitle = "Number of Riders for member rides in top start locations", x = "Longitude", y = "Latitude")
+# Map with top final location for member
+ggplot() + 
+  geom_sf(data = chi_map, fill = 'ivory', colour = 'ivory')+
+  geom_point(data = top_location_member, aes(x = end_lng, y = end_lat, colour = member_casual, size = number_of_rides))+
+  labs(title = "Top end location for member riders", subtitle = "Number of Riders for member rides in top end locations", x = "Longitude", y = "Latitude")
   
 #Create a visualization for average duration for weekday
 year_trips %>% 
@@ -293,3 +356,11 @@ year_trips %>%
 #Create a csv file that we will visualize in SpreadSheet, Tableau, etc
 counts <- aggregate(year_trips$ride_length ~ year_trips$member_casual + year_trips$day_of_week, FUN = mean)
 write.csv(counts, file = '/home/fabricio/learning/Google_data_analytic/Case_study_01/avg_ride_length.csv')
+#Create a csv file that we will visualize number of riders per hour
+riders_per_hour <- year_trips %>% 
+  mutate(hora = lubridate::hour(started_at)) %>% 
+  group_by(member_casual, hora) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, hora)
+write.csv(riders_per_hour, file = '/home/fabricio/learning/Google_data_analytic/Case_study_01/ride_length_per_hour.csv')
+riders_per_hour
