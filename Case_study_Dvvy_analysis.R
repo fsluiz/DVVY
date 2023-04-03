@@ -165,7 +165,23 @@ year_trips %>%
   annotate("text", x = 7, y = 500, label = "Rush", size = 3)+
   annotate("rect", xmin = 16, xmax = 18, ymin = 0, ymax = Inf, alpha = 0.2, fill = "orange")+
   annotate("text", x = 17, y = 500, label = "Rush", size = 3)+
-  labs(title = "Average duration per day hours", subtitle = "Comparison between casual and members consumers", x = "Hour", y = "Number of Rides", fill = "Consumer")
+  labs(title = "Average duration per day hours", subtitle = "Comparison between casual and members consumers", x = "Hour", y = "Averange duration", fill = "Consumer")
+#Filter average time between midnight and five am maximal average valor
+year_trips %>% 
+  mutate(hora = lubridate::hour(started_at)) %>% 
+  group_by(member_casual, hora) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, hora) %>% 
+  filter(hora>=0 & hora<=5) %>% 
+  filter(average_duration==max(average_duration))
+#Filter average time between midnight and five am minimal average valor
+year_trips %>% 
+  mutate(hora = lubridate::hour(started_at)) %>% 
+  group_by(member_casual, hora) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, hora) %>% 
+  filter(hora>=0 & hora<=5) %>% 
+  filter(average_duration==min(average_duration))
 # filter by work days in  day of week 
 work_days <- filter(year_trips, day_of_week %in% c('segunda','terça','quarta','quinta','sexta'))
 work_days %>% 
@@ -178,7 +194,7 @@ work_days %>%
   annotate("text", x = 7, y = 3e+05, label = "Rush", size = 3)+
   annotate("rect", xmin = 16, xmax = 18, ymin = 0, ymax = Inf, alpha = 0.2, fill = "orange")+
   annotate("text", x = 17, y = 1e+05, label = "Rush", size = 3)+
-  labs(title = "Number of Rides per day hours", subtitle = "Comparison between casual and members consumers", x = "Hour", y = "Number of Rides", fill = "Consumer")
+  labs(title = "Number of Rides per day hours, workday", subtitle = "Comparison between casual and members consumers", x = "Hour", y = "Number of Rides", fill = "Consumer")
 #filter by weekend
 weekend_days <- filter(year_trips, day_of_week %in% c('domingo','sábado'))
 weekend_days%>% 
@@ -187,7 +203,43 @@ weekend_days%>%
   summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
   arrange(member_casual, hora) %>% 
   ggplot(aes(x=hora, y= number_of_rides, colour = member_casual))+ geom_line() + 
-  labs(title = "Number of Rides per day hours", subtitle = "Comparison between casual and members consumers", x = "Hour", y = "Number of Rides", fill = "Consumer")
+  labs(title = "Number of Rides per day hours Weekend", subtitle = "Comparison between casual and members consumers", x = "Hour", y = "Number of Rides", fill = "Consumer")
+colnames(year_trips)
+# Number of rides per hour in the weekend for casual consumers
+weekend_days%>% filter(member_casual=='casual') %>% 
+  mutate(hora = lubridate::hour(started_at)) %>% 
+  group_by(rideable_type,member_casual, hora) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(rideable_type,member_casual, hora) %>% 
+  ggplot(aes(x=hora, y= number_of_rides, colour = rideable_type))+ geom_line() + 
+  labs(title = "Number of Rides per day hours Weekend", subtitle = "Comparison between casual and members consumers", x = "Hour", y = "Number of Rides", fill = "Consumer")
+# Number of rides per hour in the wook day for casual consumers
+work_days%>% filter(member_casual=='casual') %>% 
+  mutate(hora = lubridate::hour(started_at)) %>% 
+  group_by(rideable_type,member_casual, hora) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(rideable_type,member_casual, hora) %>% 
+  ggplot(aes(x=hora, y= number_of_rides, colour = rideable_type))+ geom_line() + 
+  labs(title = "Casual Number of Rides per day hours work day", subtitle = "For different rideable types, in work day (Monday to Friday)", x = "Hour", y = "Number of Rides", color = "Rideble Type")
+
+# Averagne duration the weekend for casual consumers
+weekend_days%>% filter(member_casual=='casual') %>% 
+  mutate(hora = lubridate::hour(started_at)) %>% 
+  group_by(rideable_type,member_casual, hora) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(rideable_type,member_casual, hora) %>% 
+  ggplot(aes(x=hora, y= average_duration, colour = rideable_type))+ geom_line() + 
+  labs(title = "Average duration per day hours Weekend", subtitle = "For different rideable types, in weekend", x = "Hour", y = "Average Duration", color = "Rideable Type")
+# Averange durateions per hour in the wook day for casual consumers
+work_days%>% filter(member_casual=='casual') %>% 
+  mutate(hora = lubridate::hour(started_at)) %>% 
+  group_by(rideable_type,member_casual, hora) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(rideable_type,member_casual, hora) %>% 
+  ggplot(aes(x=hora, y= average_duration, colour = rideable_type))+ geom_line() + 
+  labs(title = "Average duration per day hours work day", subtitle = "For different rideable types, in work day (Monday to Friday)", x = "Hour", y = "Number of Rides", color = "Rideble Type")
+
+
 #defi function to use a sunburs plot see https://stackoverflow.com/questions/12926779/how-to-make-a-sunburst-plot-in-r-or-python
 as.sunburstDF <- function(DF, valueCol = NULL){
   require(data.table)
