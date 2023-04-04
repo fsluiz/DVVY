@@ -182,6 +182,22 @@ year_trips %>%
   arrange(member_casual, hora) %>% 
   filter(hora>=0 & hora<=5) %>% 
   filter(average_duration==min(average_duration))
+#filter after 20:00 hours max average 
+year_trips %>% 
+  mutate(hora = lubridate::hour(started_at)) %>% 
+  group_by(member_casual, hora) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, hora) %>% 
+  filter(hora>=20) %>% 
+  filter(average_duration==max(average_duration))
+#filter after 20 h min average
+year_trips %>% 
+  mutate(hora = lubridate::hour(started_at)) %>% 
+  group_by(member_casual, hora) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, hora) %>% 
+  filter(hora>=20) %>% 
+  filter(average_duration==min(average_duration))
 # filter by work days in  day of week 
 work_days <- filter(year_trips, day_of_week %in% c('segunda','terça','quarta','quinta','sexta'))
 work_days %>% 
@@ -415,4 +431,23 @@ riders_per_hour <- year_trips %>%
   summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
   arrange(member_casual, hora)
 write.csv(riders_per_hour, file = '/home/fabricio/learning/Google_data_analytic/Case_study_01/ride_length_per_hour.csv')
-riders_per_hour
+#Create a csv file that we visualize number of riders per hours depends rideable type for members
+rideable_type_member_hour <- year_trips %>% 
+  filter(member_casual=='member') %>% 
+  mutate(hora = lubridate::hour(started_at)) %>% 
+  group_by(rideable_type, hora) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(rideable_type, hora)
+write.csv(rideable_type_member_hour, file = '/home/fabricio/learning/Google_data_analytic/Case_study_01/rideable_type_member_hour.csv')
+#Create a csv file that we visualize number of riders per hours depends rideable type for members
+rideable_type_casual_hour <- year_trips %>% 
+  mutate(hora = lubridate::hour(started_at)) %>% 
+  group_by(rideable_type, member_casual, hora) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  filter(member_casual=='casual') %>% 
+  arrange(rideable_type, hora)
+write.csv(rideable_type_casual_hour, file = '/home/fabricio/learning/Google_data_analytic/Case_study_01/rideable_type_casual_hour.csv')
+rideable_type_casual_hour
+
+library
+
